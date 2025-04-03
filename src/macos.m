@@ -5,29 +5,40 @@
 #import "platform.h"
 
 static NSWindow *g_window = nil;
+static int g_should_close = 0;
 
-// 메뉴바를 생성하는 내부 함수
-static void create_menu_bar(void) {
-    NSMenu *menuBar = [[[NSMenu alloc] init] autorelease];
-    [NSApp setMainMenu:menuBar];
+@interface WindowDelegate : NSObject <NSWindowDelegate>
+@end
 
-    NSMenuItem *appMenuItem = [[[NSMenuItem alloc] init] autorelease];
-    [menuBar addItem:appMenuItem];
-
-    NSMenu *appMenu = [[[NSMenu alloc] init] autorelease];
-    [appMenuItem setSubmenu:appMenu];
-
-    NSString *appName = [[NSProcessInfo processInfo] processName];
-    NSString *quitTitle = [@"Quit " stringByAppendingString:appName];
-
-    NSMenuItem *quitItem = [[[NSMenuItem alloc] initWithTitle:quitTitle
-                                                       action:@selector(terminate:)
-                                                keyEquivalent:@"q"] autorelease];
-    [appMenu addItem:quitItem];
+@implementation WindowDelegate
+- (BOOL)windowShouldClose:(id)sender {
+    g_should_close = 1;
+    return (NO);
 }
+@end
 
-// 윈도우를 생성하는 내부 함수
-static void create_window(void) {
+void platform_initialize(void) {
+    if (NSApp == nil) {
+        [NSApplication sharedApplication];
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+        
+        NSMenu *menuBar = [[[NSMenu alloc] init] autorelease];
+        [NSApp setMainMenu:menuBar];
+        NSMenuItem *appMenuItem = [[[NSMenuItem alloc] init] autorelease];
+        [menuBar addItem:appMenuItem];
+        NSMenu *appMenu = [[[NSMenu alloc] init] autorelease];
+        [appMenuItem setSubmenu:appMenu];
+        NSString *appName = [[NSProcessInfo processInfo] processName];
+        NSString *quitTitle = [@"Quit " stringByAppendingString:appName];
+        NSMenuItem *quitItem = [[[NSMenuItem alloc]
+            initWithTitle:quitTitle
+                  action:@selector(terminate:)
+           keyEquivalent:@"q"] autorelease];
+        [appMenu addItem:quitItem];
+
+        [NSApp finishLaunching];
+    }
+
     NSRect frame = NSMakeRect(100, 100, 800, 600);
     NSUInteger style = NSWindowStyleMaskTitled |
                        NSWindowStyleMaskClosable |
@@ -37,22 +48,23 @@ static void create_window(void) {
                                            styleMask:style
                                              backing:NSBackingStoreBuffered
                                                defer:NO];
-
-    [g_window setTitle:@"My Objective-C Window"];
+    [g_window setTitle:@"Renderer"];
     [g_window makeKeyAndOrderFront:nil];
+
+    WindowDelegate *delegate = [[WindowDelegate alloc] init];
+    [g_window setDelegate:delegate];
 }
 
-// 외부에서 호출할 초기화 함수
-void platform_initialize(void) {
-    if (NSApp == nil) {
-        [NSApplication sharedApplication];
-        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-        create_menu_bar();
-        [NSApp finishLaunching];
+int window_should_close(void) {
+    return (g_should_close);
+}
+
+void input_poll_events(void) {
+    NSEvent *event;
+    while ((event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                                        untilDate:[NSDate distantPast]
+                                           inMode:NSDefaultRunLoopMode
+                                          dequeue:YES])) {
+        [NSApp sendEvent:event];
     }
-
-    // 윈도우 생성
-    create_window();
-
-	[NSApp run];
 }

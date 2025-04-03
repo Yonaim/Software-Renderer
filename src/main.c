@@ -1,8 +1,10 @@
 #include "platform.h"
-#include <stdio.h>
 
-int main(int argc, const char * argv[]) {
-    platform_initialize(); // blocking
-	printf("test\n");
-    return 0;
+int main(void) {
+    platform_initialize();
+    while (!window_should_close()) {
+        // renderer_draw_frame();
+        input_poll_events();
+    }
+    return (0);
 }
